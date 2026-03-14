@@ -2,7 +2,7 @@
 
 # kj-clipboard server, no frills public clipboard
 # single-file server: sqlite, mojicrypt encryption, syntax highlighting
-# usage: python3 server.py
+# usage: python3 src/server.py
 
 import http.server
 import json

@@ -15,11 +15,11 @@ WORKDIR /app
 
 COPY . .
 
-RUN mkdir -p /app/data \
+RUN mkdir -p /app/src/data \
     && adduser -D appuser && chown -R appuser:appuser /app
 
 EXPOSE 5555
 
 USER appuser
 
-CMD ["python3", "server.py"]
+CMD ["python3", "src/server.py"]

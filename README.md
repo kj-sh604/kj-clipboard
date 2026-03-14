@@ -20,20 +20,20 @@ no frills, just a public clipboard on the internet that you can use to share sni
 ## run
 
 ```sh
-python3 server.py
+python3 src/server.py
 ```
 
 listens on `0.0.0.0:5555` by default. configure with environment variables:
 
 ```sh
-KJ_CLIPBOARD_PORT=8080 KJ_CLIPBOARD_BIND=127.0.0.1 python3 server.py
+KJ_CLIPBOARD_PORT=8080 KJ_CLIPBOARD_BIND=127.0.0.1 python3 src/server.py
 ```
 
 ## docker
 
 ```sh
 docker build -t kj-clipboard .
-docker run -p 5555:5555 -v kj-clipboard-data:/app/data kj-clipboard
+docker run -p 5555:5555 -v kj-clipboard-data:/app/src/data kj-clipboard
 ```
 
 ## screenshot
