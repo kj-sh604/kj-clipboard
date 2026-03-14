@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# kj-clipboard server — no frills public clipboard
+# kj-clipboard server, no frills public clipboard
 # single-file server: sqlite, mojicrypt encryption, syntax highlighting
 # usage: python3 server.py
 
@@ -570,7 +570,7 @@ class ClipboardHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         client_ip = get_client_ip(self)
         sys.stderr.write(
-            f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {client_ip} — {fmt % args}\n"
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {client_ip} - {fmt % args}\n"
         )
 
     def add_security_headers(self):
@@ -748,7 +748,7 @@ class ClipboardHandler(http.server.BaseHTTPRequestHandler):
             encrypted = mojicrypt_encrypt(content, passphrase)
             if encrypted is None:
                 self.send_json(
-                    500, {"error": "encryption failed — is mojicrypt installed?"}
+                    500, {"error": "encryption failed - is mojicrypt installed?"}
                 )
                 return
             store_content = encrypted
@@ -815,7 +815,7 @@ class ClipboardHTTPServer(http.server.ThreadingHTTPServer):
 
 def main():
     init_db()
-    print(f"kj-clipboard — listening on {BIND}:{PORT}")
+    print(f"kj-clipboard - listening on {BIND}:{PORT}")
 
     server = ClipboardHTTPServer((BIND, PORT), ClipboardHandler)
     shutdown_requested = threading.Event()
