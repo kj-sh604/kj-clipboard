@@ -26,10 +26,10 @@ BIND = os.environ.get("KJ_CLIPBOARD_BIND", "0.0.0.0")
 BASE_DIR = Path(__file__).parent.resolve()
 DB_PATH = BASE_DIR / "data" / "kj-clipboard.db"
 RANDOM_ID_LENGTH = 40  # random chars after unix epoch
-MAX_PASTE_SIZE = 1024 * 1024  # 1 MiB
-MAX_PASSPHRASE_SIZE = 256
+MAX_PASTE_SIZE = 67 * 1024 * 1024 // 10  # 6.7 MiB
+MAX_PASSPHRASE_SIZE = 512
 MAX_LANGUAGE_SIZE = 32
-MAX_DECRYPT_SIZE = 2 * 1024 * 1024  # includes encrypted glyph overhead
+MAX_DECRYPT_SIZE = 3 * 1024 * 1024  # headroom for decrypt requests with long passphrases
 ID_PATTERN = re.compile(r"^[0-9]{10,}[a-f0-9]{40}$")
 LANGUAGE_PATTERN = re.compile(r"^[a-z0-9_+#-]{1,32}$")
 
@@ -721,7 +721,7 @@ class ClipboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(400, {"error": "content is required"})
             return
         if len(content.encode("utf-8")) > MAX_PASTE_SIZE:
-            self.send_json(413, {"error": "paste too large (max 1 MiB)"})
+            self.send_json(413, {"error": "paste too large (max 6.7 MiB)"})
             return
 
         is_code = bool(data.get("is_code", False))
