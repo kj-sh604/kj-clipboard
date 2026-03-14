@@ -40,7 +40,7 @@ docker run -p 5555:5555 -v kj-clipboard-data:/app/data kj-clipboard
 
 it looks exactly how you'd expect, a textarea and a button.
 
-TODO: add screenshot
+![screenshot](ss.png)
 
 ## license
 
