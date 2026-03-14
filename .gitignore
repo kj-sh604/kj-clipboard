@@ -1,0 +1,5 @@
+data/kj-clipboard.db
+__pycache__/
+*.pyc
+.venv/
+venv/
