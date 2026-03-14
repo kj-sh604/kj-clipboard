@@ -15,7 +15,7 @@ no frills, just a public clipboard on the internet that you can use to share sni
 ## dependencies
 
 - python 3.12+
-- [mojicrypt](https://github.com/kj-sh604/mojicrypt) (optional — only needed for encrypted pastes)
+- [mojicrypt](https://github.com/kj-sh604/mojicrypt) (optional, only needed for encrypted pastes)
 
 ## run
 
@@ -38,7 +38,7 @@ docker run -p 5555:5555 -v kj-clipboard-data:/app/data kj-clipboard
 
 ## screenshot
 
-it looks exactly how you'd expect — a textarea and a button.
+it looks exactly how you'd expect, a textarea and a button.
 
 TODO: add screenshot
 
