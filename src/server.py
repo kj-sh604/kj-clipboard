@@ -41,6 +41,10 @@ ALLOWED_LANGUAGES = {
     "abnf",
     "accesslog",
     "ada",
+    "angelscript",
+    "apache",
+    "applescript",
+    "arcade",
     "arduino",
     "armasm",
     "asciidoc",
@@ -118,6 +122,7 @@ ALLOWED_LANGUAGES = {
     "jboss-cli",
     "json",
     "julia",
+    "julia-repl",
     "kotlin",
     "lasso",
     "latex",
@@ -209,6 +214,7 @@ ALLOWED_LANGUAGES = {
     "vala",
     "vbnet",
     "vbscript",
+    "vbscript-html",
     "verilog",
     "vhdl",
     "vim",
@@ -651,6 +657,20 @@ class ClipboardHandler(http.server.BaseHTTPRequestHandler):
 
             if path == "/":
                 self.send_html(200, landing_page())
+                return
+
+            if path == "/main.js":
+                js_path = BASE_DIR / "main.js"
+                if not js_path.exists():
+                    self.send_plain(404, "not found")
+                    return
+                data = js_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.add_security_headers()
+                self.end_headers()
+                self.wfile.write(data)
                 return
 
             if path.startswith("/raw/"):
