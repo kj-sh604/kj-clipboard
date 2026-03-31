@@ -579,6 +579,7 @@ def paste_page(paste):
     <meta name="color-scheme" content="light dark">
     <meta name="robots" content="noindex, nofollow">
     <title>kj-clipboard - {paste_id}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kj-sh604/noir.css@latest/out/noir.min.css">
     {highlight_css}
 </head>
@@ -632,6 +633,7 @@ def not_found_page():
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>kj-clipboard - not found</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kj-sh604/noir.css@latest/out/noir.min.css">
 </head>
 <body>
@@ -803,6 +805,20 @@ class ClipboardHandler(http.server.BaseHTTPRequestHandler):
                 data = js_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/javascript; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.add_security_headers()
+                self.end_headers()
+                self.wfile.write(data)
+                return
+
+            if path == "/favicon.svg":
+                icon_path = BASE_DIR / "favicon.svg"
+                if not icon_path.exists():
+                    self.send_plain(404, "not found")
+                    return
+                data = icon_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/svg+xml")
                 self.send_header("Content-Length", str(len(data)))
                 self.add_security_headers()
                 self.end_headers()
