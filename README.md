@@ -23,11 +23,15 @@ no frills, just a public clipboard on the internet that you can use to share sni
 python3 src/server.py
 ```
 
-listens on `0.0.0.0:5555` by default. configure with environment variables:
+## config
 
-```sh
-KJ_CLIPBOARD_PORT=8080 KJ_CLIPBOARD_BIND=127.0.0.1 python3 src/server.py
-```
+all runtime/security/sqlite values are edited directly in `src/server.py` under `# config`.
+
+- sqlite wal + retry/backoff enabled
+- moderate post rate-limit (`150/min` per ip)
+- hsts disabled by default (safe for non-https setups)
+
+if you terminate tls at nginx/caddy, enable hsts by setting `ENABLE_HSTS = True`.
 
 ## docker
 

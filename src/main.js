@@ -63,13 +63,20 @@ async function createPaste() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
         });
-        const data = await resp.json();
-        if (data.error) {
-            setStatus("error: " + data.error);
-            btn.disabled = false;
-            btn.textContent = "generate link";
+        let data = null;
+        try {
+            data = await resp.json();
+        } catch (_err) {
+            setStatus("error: invalid server response");
             return;
         }
+
+        if (!resp.ok || !data || data.error || typeof data.url !== "string") {
+            const msg = data && data.error ? data.error : "request failed";
+            setStatus("error: " + msg);
+            return;
+        }
+
         const url = window.location.origin + data.url;
         const linkEl = document.getElementById("result-link");
         linkEl.href = url;
@@ -78,14 +85,25 @@ async function createPaste() {
         setStatus("done.");
     } catch (e) {
         setStatus("error: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "generate link";
     }
-    btn.disabled = false;
-    btn.textContent = "generate link";
 }
 
-function copyLink() {
+async function copyLink() {
     const url = document.getElementById("result-link").textContent;
-    navigator.clipboard.writeText(url);
+    if (!url) {
+        setStatus("nothing to copy.");
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(url);
+        setStatus("link copied.");
+    } catch (_err) {
+        setStatus("error: clipboard copy failed");
+    }
 }
 
 function setStatus(msg) {
@@ -94,6 +112,11 @@ function setStatus(msg) {
 
 restoreFormState();
 
+document.getElementById("get-link-btn").addEventListener("click", createPaste);
+document.getElementById("copy-link-btn").addEventListener("click", function () {
+    void copyLink();
+});
+document.getElementById("is-code").addEventListener("change", toggleLang);
 document.getElementById("content").addEventListener("input", saveFormState);
 document.getElementById("lang-select").addEventListener("change", saveFormState);
 
