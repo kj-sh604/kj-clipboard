@@ -68,6 +68,12 @@
             word-break: break-all;
         }
 
+        .copy-link-btn {
+            margin-left: 0.5rem;
+            font-size: 0.85rem;
+            padding: 0.25rem 0.5rem;
+        }
+
         .spacer {
             flex-grow: 1;
         }
@@ -87,9 +93,9 @@
     <h1>kj-clipboard</h1>
     <p>no frills, just a public clipboard on the internet that you can use to share snippets around... that's it.</p>
     <textarea id="content" placeholder="paste or type something here..." autofocus spellcheck="false"></textarea>
-    <div class="controls"><button id="get-link-btn" onclick="createPaste()" title="generate snippet link">generate
-            link</button><span class="spacer"></span><label><input type="checkbox" id="is-code"
-                onchange="toggleLang()">is this code? </label><select id="lang-select">
+    <div class="controls"><button id="get-link-btn" type="button" title="generate snippet link">generate
+            link</button><span class="spacer"></span><label><input type="checkbox" id="is-code">is this code?
+        </label><select id="lang-select">
             <option value="">auto-detect</option>
             <option value="1c">1c</option>
             <option value="abnf">abnf</option>
@@ -413,11 +419,12 @@
             <option value="yaml">yaml</option>
             <option value="zephir">zephir</option>
             <option value="zep">zep</option>
-        </select></div><br><input type="password" id="passphrase"
+        </select></div><br><input type="password" id="passphrase" autocomplete="off"
         placeholder="passphrase (optional)"><small>&nbsp;encrypted with <a href="https://github.com/kj-sh604/mojicrypt"
-            target="_blank">mojicrypt</a></small>
-    <div class="result" id="result"><span>link: <a id="result-link" href="#" target="_blank"></a></span><button
-            onclick="copyLink()" style="margin-left: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.5rem;">copy
+            target="_blank" rel="noopener noreferrer">mojicrypt</a></small>
+    <div class="result" id="result"><span>link: <a id="result-link" href="#" target="_blank"
+                rel="noopener noreferrer"></a></span><button id="copy-link-btn" type="button"
+            class="copy-link-btn">copy
             link</button></div>
     <div class="status" id="status"></div>
     <script src="main.js" defer></script>
