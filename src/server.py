@@ -595,6 +595,7 @@ def paste_page(paste, csp_nonce):
     paste_id_json = json.dumps(paste_id)
     code_lang_class = f"language-{language}" if language else ""
     code_lang_class_json = json.dumps(code_lang_class)
+    language_json = json.dumps(language)
 
     script_nonce_attr = f' nonce="{html_escape_attr(csp_nonce)}"'
 
@@ -650,7 +651,13 @@ def paste_page(paste, csp_nonce):
             codeInner.textContent = data.content;
             codeEl.appendChild(codeInner);
             el.appendChild(codeEl);
-            hljs.highlightElement(codeInner);
+            const ready = window.kjClipboardHighlightReady;
+            if (ready && typeof ready.then === "function") {{
+                await ready;
+            }}
+            if (window.hljs && typeof hljs.highlightElement === "function") {{
+                hljs.highlightElement(codeInner);
+            }}
             '''}
             {"" if is_code else '''
             const pre = document.createElement("pre");
@@ -676,7 +683,34 @@ def paste_page(paste, csp_nonce):
     if is_code:
         highlight_css = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/vs2015.min.css">'
         highlight_js = f"""<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-    <script{script_nonce_attr}>hljs.highlightAll();</script>"""
+    <script{script_nonce_attr}>
+    // load uncommon languages on demand; run highlighting either way, if code
+    window.kjClipboardHighlightReady = new Promise((resolve) => {{
+        const runHighlight = () => {{
+            if (window.hljs && typeof hljs.highlightAll === "function") {{
+                hljs.highlightAll();
+            }}
+            resolve();
+        }};
+
+        const lang = {language_json};
+        if (!lang || !window.hljs || typeof hljs.getLanguage !== "function") {{
+            runHighlight();
+            return;
+        }}
+
+        if (hljs.getLanguage(lang)) {{
+            runHighlight();
+            return;
+        }}
+
+        const langScript = document.createElement("script");
+        langScript.src = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/" + encodeURIComponent(lang) + ".min.js";
+        langScript.onload = runHighlight;
+        langScript.onerror = runHighlight;
+        document.head.appendChild(langScript);
+    }});
+    </script>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
