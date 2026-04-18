@@ -7,6 +7,7 @@
 import http.server
 import json
 import ipaddress
+import queue
 import re
 import secrets
 import signal
@@ -52,6 +53,14 @@ SQLITE_SYNCHRONOUS = "NORMAL"  # OFF | NORMAL | FULL | EXTRA
 # accept short bursts without immediately refusing tcp connections.
 HTTP_REQUEST_QUEUE_SIZE = 64
 
+# single sqlite writer with queue + micro-batching reduces lock contention under load.
+WRITE_QUEUE_MAX_SIZE = 4096
+WRITE_QUEUE_WAIT_SECONDS = 8
+WRITE_QUEUE_ENQUEUE_TIMEOUT_SECONDS = 0.25
+WRITE_BATCH_SIZE = 32
+WRITE_BATCH_MAX_DELAY_MS = 12
+WRITE_WORKER_JOIN_TIMEOUT_SECONDS = 5
+
 TRUST_PROXY = False
 TRUSTED_PROXY_IPS = {"127.0.0.1", "::1"}
 # hsts off by default to avoid breaking plain-http setups.
@@ -63,324 +72,194 @@ ALLOWED_LANGUAGES = {
     "abnf",
     "accesslog",
     "actionscript",
-    "as",
     "ada",
     "angelscript",
-    "asc",
     "apache",
-    "apacheconf",
     "applescript",
-    "osascript",
     "arcade",
     "arduino",
-    "ino",
     "armasm",
-    "arm",
+    "xml",
     "asciidoc",
-    "adoc",
     "aspectj",
     "autohotkey",
     "autoit",
     "avrasm",
     "awk",
-    "mawk",
-    "nawk",
-    "gawk",
-    "ballerina",
-    "bal",
+    "axapta",
     "bash",
-    "sh",
-    "zsh",
     "basic",
     "bnf",
     "brainfuck",
-    "bf",
     "c",
-    "h",
-    "csharp",
-    "cpp",
-    "hpp",
-    "cc",
-    "hh",
-    "c++",
-    "h++",
-    "cxx",
-    "hxx",
     "cal",
-    "cos",
-    "cls",
     "capnproto",
-    "capnp",
+    "ceylon",
+    "clean",
     "clojure",
-    "clj",
+    "clojure-repl",
     "cmake",
-    "cmake.in",
     "coffeescript",
-    "coffee",
-    "cson",
-    "iced",
     "coq",
+    "cos",
+    "cpp",
     "crmsh",
-    "crm",
-    "pcmk",
     "crystal",
-    "cr",
+    "csharp",
     "csp",
     "css",
     "d",
+    "markdown",
     "dart",
-    "dpr",
-    "dfm",
-    "pas",
-    "pascal",
+    "delphi",
     "diff",
-    "patch",
     "django",
-    "jinja",
     "dns",
-    "zone",
-    "bind",
     "dockerfile",
-    "docker",
     "dos",
-    "bat",
-    "cmd",
     "dsconfig",
     "dts",
     "dust",
-    "dst",
     "ebnf",
     "elixir",
     "elm",
+    "ruby",
+    "erb",
+    "erlang-repl",
     "erlang",
-    "erl",
     "excel",
-    "xls",
-    "xlsx",
-    "extempore",
-    "xtlang",
-    "xtm",
-    "fsharp",
-    "fs",
-    "fsx",
-    "fsi",
-    "fsscript",
     "fix",
+    "flix",
+    "fsharp",
     "fortran",
-    "f90",
-    "f95",
     "gcode",
-    "nc",
     "gams",
-    "gms",
     "gauss",
-    "gss",
     "gherkin",
+    "glsl",
+    "gml",
     "go",
-    "golang",
     "golo",
-    "gololang",
     "gradle",
     "graphql",
-    "gql",
     "groovy",
     "haml",
     "handlebars",
-    "hbs",
-    "html.hbs",
-    "html.handlebars",
     "haskell",
-    "hs",
     "haxe",
-    "hx",
-    "xml",
-    "html",
-    "xhtml",
-    "rss",
-    "atom",
-    "xjb",
-    "xsd",
-    "xsl",
-    "plist",
-    "svg",
+    "hsp",
     "http",
-    "https",
     "hy",
-    "hylang",
     "inform7",
-    "i7",
     "ini",
-    "toml",
     "irpf90",
+    "isbl",
     "java",
-    "jsp",
     "javascript",
-    "js",
-    "jsx",
+    "jboss-cli",
     "json",
-    "jsonc",
-    "json5",
     "julia",
-    "jl",
     "julia-repl",
     "kotlin",
-    "kt",
     "lasso",
-    "lassoscript",
-    "tex",
+    "latex",
     "ldif",
     "leaf",
     "less",
     "lisp",
     "livecodeserver",
     "livescript",
+    "llvm",
+    "lsl",
     "lua",
-    "pluto",
     "makefile",
-    "mk",
-    "mak",
-    "make",
-    "markdown",
-    "md",
-    "mkdown",
-    "mkd",
     "mathematica",
-    "mma",
-    "wl",
     "matlab",
     "maxima",
     "mel",
     "mercury",
-    "mips",
     "mipsasm",
     "mizar",
+    "perl",
     "mojolicious",
     "monkey",
     "moonscript",
-    "moon",
     "n1ql",
+    "nestedtext",
     "nginx",
-    "nginxconf",
     "nim",
-    "nimrod",
     "nix",
+    "node-repl",
     "nsis",
     "objectivec",
-    "mm",
-    "objc",
-    "obj-c",
-    "obj-c++",
-    "objective-c++",
     "ocaml",
-    "glsl",
     "openscad",
-    "scad",
-    "ruleslanguage",
     "oxygene",
     "parser3",
-    "perl",
-    "pl",
-    "pm",
     "pf",
-    "pf.conf",
-    "php",
-    "plaintext",
-    "txt",
-    "text",
-    "pony",
     "pgsql",
-    "postgres",
-    "postgresql",
+    "php",
+    "php-template",
+    "plaintext",
+    "pony",
     "powershell",
-    "ps",
-    "ps1",
     "processing",
     "prolog",
     "properties",
-    "proto",
     "protobuf",
     "puppet",
-    "pp",
+    "purebasic",
     "python",
-    "py",
-    "gyp",
     "profile",
     "python-repl",
-    "pycon",
-    "k",
-    "kdb",
+    "q",
     "qml",
     "r",
     "reasonml",
     "rib",
+    "roboconf",
+    "routeros",
     "rsl",
-    "graph",
-    "instances",
-    "ruby",
-    "rb",
-    "gemspec",
-    "podspec",
-    "thor",
-    "irb",
+    "ruleslanguage",
     "rust",
-    "rs",
     "sas",
     "scala",
     "scheme",
     "scilab",
-    "sci",
     "scss",
     "shell",
-    "console",
     "smali",
     "smalltalk",
-    "st",
     "sml",
+    "sqf",
     "sql",
     "stan",
-    "stanfuncs",
     "stata",
-    "p21",
-    "step",
-    "stp",
+    "step21",
     "stylus",
-    "styl",
     "subunit",
     "swift",
-    "tcl",
-    "tk",
+    "taggerscript",
+    "yaml",
     "tap",
+    "tcl",
     "thrift",
     "tp",
     "twig",
-    "craftcms",
     "typescript",
-    "ts",
-    "tsx",
-    "mts",
-    "cts",
     "vala",
     "vbnet",
-    "vb",
     "vbscript",
-    "vbs",
+    "vbscript-html",
     "verilog",
-    "v",
     "vhdl",
     "vim",
-    "axapta",
-    "x++",
+    "wasm",
+    "wren",
     "x86asm",
     "xl",
-    "tao",
     "xquery",
-    "xpath",
-    "xq",
-    "xqm",
-    "yml",
-    "yaml",
     "zephir",
-    "zep",
 
 }
 
@@ -388,6 +267,10 @@ ALLOWED_LANGUAGES = {
 # in-memory fixed-window rate limiter (cheap guardrail behind nginx)
 _rate_lock = threading.Lock()
 _rate_state = {}
+
+_write_queue = queue.Queue(maxsize=WRITE_QUEUE_MAX_SIZE)
+_write_worker_thread = None
+_write_worker_stop = threading.Event()
 
 
 # database
@@ -406,6 +289,147 @@ def sqlite_retry_sleep(attempt):
     delay_ms = SQLITE_RETRY_BASE_MS * (2**attempt)
     jitter_ms = secrets.randbelow(SQLITE_RETRY_BASE_MS + 1)
     time.sleep(min((delay_ms + jitter_ms) / 1000.0, 1.0))
+
+
+def build_write_job(content, language, is_code, is_encrypted):
+    return {
+        "content": content,
+        "language": language,
+        "is_code": int(is_code),
+        "is_encrypted": int(is_encrypted),
+        "created_at": int(time.time()),
+        "paste_id": None,
+        "error": None,
+        "done": threading.Event(),
+    }
+
+
+def execute_write_batch(conn, jobs):
+    for write_attempt in range(SQLITE_WRITE_RETRIES + 1):
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            for job in jobs:
+                for _ in range(5):
+                    paste_id = generate_id()
+                    try:
+                        conn.execute(
+                            "INSERT INTO pastes (id, content, language, is_code, is_encrypted, created_at) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (
+                                paste_id,
+                                job["content"],
+                                job["language"],
+                                job["is_code"],
+                                job["is_encrypted"],
+                                job["created_at"],
+                            ),
+                        )
+                        job["paste_id"] = paste_id
+                        break
+                    except sqlite3.IntegrityError:
+                        continue
+                if not job["paste_id"]:
+                    raise RuntimeError("failed to generate unique paste id")
+
+            conn.commit()
+            return
+        except sqlite3.OperationalError as err:
+            try:
+                conn.rollback()
+            except sqlite3.DatabaseError:
+                pass
+
+            if is_sqlite_busy_error(err):
+                if write_attempt >= SQLITE_WRITE_RETRIES:
+                    raise DatabaseBusyError("database is busy; retry shortly") from err
+                sqlite_retry_sleep(write_attempt)
+                continue
+
+            raise
+        except Exception:
+            try:
+                conn.rollback()
+            except sqlite3.DatabaseError:
+                pass
+            raise
+
+
+def flush_write_batch(conn, jobs):
+    try:
+        execute_write_batch(conn, jobs)
+    except Exception as err:
+        for job in jobs:
+            job["error"] = err
+            job["done"].set()
+        return
+
+    for job in jobs:
+        job["done"].set()
+
+
+def collect_write_batch(first_job):
+    jobs = [first_job]
+    deadline = time.monotonic() + (WRITE_BATCH_MAX_DELAY_MS / 1000.0)
+
+    while len(jobs) < WRITE_BATCH_SIZE:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+
+        try:
+            next_job = _write_queue.get(timeout=remaining)
+        except queue.Empty:
+            break
+
+        jobs.append(next_job)
+
+    return jobs
+
+
+def write_worker_loop():
+    conn = open_db()
+    try:
+        while True:
+            if _write_worker_stop.is_set() and _write_queue.empty():
+                break
+
+            try:
+                first_job = _write_queue.get(timeout=0.25)
+            except queue.Empty:
+                continue
+
+            jobs = collect_write_batch(first_job)
+            flush_write_batch(conn, jobs)
+            for _ in jobs:
+                _write_queue.task_done()
+    finally:
+        conn.close()
+
+
+def start_write_worker():
+    global _write_worker_thread
+
+    if _write_worker_thread and _write_worker_thread.is_alive():
+        return
+
+    _write_worker_stop.clear()
+    _write_worker_thread = threading.Thread(
+        target=write_worker_loop,
+        daemon=True,
+        name="sqlite-write-worker",
+    )
+    _write_worker_thread.start()
+
+
+def stop_write_worker():
+    global _write_worker_thread
+
+    if not _write_worker_thread:
+        return
+
+    _write_worker_stop.set()
+    _write_worker_thread.join(timeout=WRITE_WORKER_JOIN_TIMEOUT_SECONDS)
+    _write_worker_thread = None
 
 
 def open_db():
@@ -465,47 +489,25 @@ def is_valid_paste_id(paste_id):
 
 def save_paste(content, language=None, is_code=False, is_encrypted=False):
     """store a paste in the database, return its id"""
-    for write_attempt in range(SQLITE_WRITE_RETRIES + 1):
-        conn = open_db()
-        try:
-            # reserve the write lock early to reduce lock thrash under bursty writes.
-            conn.execute("BEGIN IMMEDIATE")
-            for _ in range(5):
-                paste_id = generate_id()
-                try:
-                    conn.execute(
-                        "INSERT INTO pastes (id, content, language, is_code, is_encrypted, created_at) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
-                        (
-                            paste_id,
-                            content,
-                            language,
-                            int(is_code),
-                            int(is_encrypted),
-                            int(time.time()),
-                        ),
-                    )
-                    conn.commit()
-                    return paste_id
-                except sqlite3.IntegrityError:
-                    continue
-            conn.rollback()
-            raise RuntimeError("failed to generate unique paste id")
-        except sqlite3.OperationalError as err:
-            try:
-                conn.rollback()
-            except sqlite3.DatabaseError:
-                pass
-            if is_sqlite_busy_error(err):
-                if write_attempt >= SQLITE_WRITE_RETRIES:
-                    raise DatabaseBusyError("database is busy; retry shortly") from err
-                sqlite_retry_sleep(write_attempt)
-                continue
-            raise
-        finally:
-            conn.close()
+    job = build_write_job(content, language, is_code, is_encrypted)
 
-    raise DatabaseBusyError("database is busy; retry shortly")
+    try:
+        _write_queue.put(job, timeout=WRITE_QUEUE_ENQUEUE_TIMEOUT_SECONDS)
+    except queue.Full as err:
+        raise DatabaseBusyError("write queue is full; retry shortly") from err
+
+    if not job["done"].wait(WRITE_QUEUE_WAIT_SECONDS):
+        raise DatabaseBusyError("write queue timeout; retry shortly")
+
+    if job["error"]:
+        if isinstance(job["error"], Exception):
+            raise job["error"]
+        raise RuntimeError("write failed")
+
+    if not job["paste_id"]:
+        raise RuntimeError("write completed without paste id")
+
+    return job["paste_id"]
 
 
 def get_paste(paste_id):
@@ -672,8 +674,8 @@ def paste_page(paste, csp_nonce):
     highlight_css = ""
     highlight_js = ""
     if is_code:
-        highlight_css = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">'
-        highlight_js = f"""<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        highlight_css = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/vs2015.min.css">'
+        highlight_js = f"""<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
     <script{script_nonce_attr}>hljs.highlightAll();</script>"""
 
     return f"""<!DOCTYPE html>
@@ -1222,6 +1224,7 @@ class ClipboardHTTPServer(http.server.ThreadingHTTPServer):
 
 def main():
     init_db()
+    start_write_worker()
     print(f"kj-clipboard - listening on {BIND}:{PORT}")
 
     server = ClipboardHTTPServer((BIND, PORT), ClipboardHandler)
@@ -1245,6 +1248,7 @@ def main():
     except KeyboardInterrupt:
         print("\nreceived keyboard interrupt, shutting down.")
     finally:
+        stop_write_worker()
         server.server_close()
 
 
