@@ -149,6 +149,7 @@ ALLOWED_LANGUAGES = {
     "haxe",
     "hsp",
     "http",
+    "html",
     "hy",
     "inform7",
     "ini",
